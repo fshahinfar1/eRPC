@@ -215,7 +215,7 @@ void app_cont_func(void *_context, void *_tag) {
   auto *c = static_cast<AppContext *>(_context);
   auto tag = static_cast<tag_t>(_tag);
 
-  printf("@app_cont_func: tag: %u:%u\n", tag.s.batch_i, tag.s.msgbuf_i);
+  /* printf("@app_cont_func: tag: %u:%u\n", tag.s.batch_i, tag.s.msgbuf_i); */
 
   BatchContext &bc = c->batch_arr[tag.s.batch_i];
   const erpc::MsgBuffer &resp_msgbuf = bc.resp_msgbuf[tag.s.msgbuf_i];
