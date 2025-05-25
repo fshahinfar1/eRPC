@@ -9,7 +9,7 @@ if [ "$app" != "msgsz_wndsz" ]; then
 fi
 
 ssh_user=farbod
-ssh_server=138.37.32.110
+ssh_server=138.37.32.108
 erpc_dir=/home/farbod/dev/eRPC
 output_dir=$HOME/results/erpc
 
@@ -20,6 +20,7 @@ TIME=30000
 BATCH_SIZE=1
 MSG_SIZE=64
 NUMA_NODE=0
+NUMA_NODE_SERVER=1
 CONFIG_STR="NOT_GENERATED_YET"
 
 parse_args() {
@@ -42,7 +43,7 @@ stop_erverything() {
 }
 
 start_server() {
-	cmd="bash $erpc_dir/scripts/msgsz_wndsz/run_app.sh -p 0 -n $NUMA_NODE -m $MSG_SIZE -b $BATCH_SIZE -t $TIME &> $default_filename < /dev/null &"
+	cmd="bash $erpc_dir/scripts/msgsz_wndsz/run_app.sh -p 0 -n $NUMA_NODE_SERVER -m $MSG_SIZE -b $BATCH_SIZE -t $TIME &> $default_filename < /dev/null &"
 	ssh $ssh_user@$ssh_server "$cmd" &> /dev/null
 	sleep 1
 }
@@ -62,6 +63,13 @@ one_round() {
 get_output_file_name() {
 	echo "$output_dir"/msg_sz_"$1"_wnd_sz_"$2".txt
 }
+
+on_signal() {
+	stop_erverything
+	exit 1
+}
+
+trap 'on_signal' SIGINT SIGHUP
 
 main() {
 	parse_args $@
