@@ -1,0 +1,9 @@
+--test_ms 30000
+--sm_verbose 0
+--batch_size 512
+--concurrency 1
+--msg_size 8192
+--num_processes 2
+--num_threads 1
+--numa_node 1
+--numa_1_ports 0
