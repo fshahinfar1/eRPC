@@ -172,7 +172,7 @@ static void gen_ipv4_header(ipv4_hdr_t* ipv4_hdr, uint32_t src_ip,
       htons(sizeof(ipv4_hdr_t) + sizeof(udp_hdr_t) + data_size);
   ipv4_hdr->id_ = htons(0);
   ipv4_hdr->frag_off_ = htons(0);
-  ipv4_hdr->ttl_ = 128;
+  ipv4_hdr->ttl_ = 16;
   ipv4_hdr->protocol_ = kIPHdrProtocol;
   ipv4_hdr->src_ip_ = htonl(src_ip);
   ipv4_hdr->dst_ip_ = htonl(dst_ip);

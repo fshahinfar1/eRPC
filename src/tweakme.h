@@ -10,7 +10,7 @@
 namespace erpc {
 
 /// Packet loss timeout for an RPC request in microseconds
-static constexpr size_t kRpcRTOUs = 5000;
+static constexpr size_t kRpcRTOUs = 1000000;
 
 // Congestion control
 static constexpr bool kEnableCc = true;
@@ -18,7 +18,7 @@ static constexpr bool kEnableCcOpts = true;
 
 static constexpr bool kCcRTT = kEnableCc;       ///< Measure per-packet RTT
 static constexpr bool kCcRateComp = kEnableCc;  ///< Perform rate computation
-static constexpr bool kCcPacing = kEnableCc;    ///< Use rate limiter for pacing
+static constexpr bool kCcPacing = false;    ///< Use rate limiter for pacing
 
 /// Sample RDTSC once per RX/TX batch for RTT measurements
 static constexpr bool kCcOptBatchTsc = kEnableCcOpts;

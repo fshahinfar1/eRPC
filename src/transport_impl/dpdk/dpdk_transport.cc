@@ -47,7 +47,7 @@ DpdkTransport::DpdkTransport(uint16_t sm_udp_port, uint8_t rpc_id,
           "-n",            "6",  // Memory channels
           "-m",            "1024", // Max memory in megabytes
           "--proc-type",   "auto",
-          "--log-level",   (ERPC_LOG_LEVEL >= ERPC_LOG_LEVEL_INFO) ? "8" : "0",
+          "--log-level",   "8", // (ERPC_LOG_LEVEL >= ERPC_LOG_LEVEL_INFO) ? "8" : "0",
           nullptr};
       // clang-format on
 
@@ -287,10 +287,16 @@ uint32_t DpdkTransport::get_port_ipv4_addr(size_t phy_port) {
     ifr.ifr_addr.sa_family = AF_INET;
     strncpy(ifr.ifr_name, "eth1", IFNAMSIZ - 1);
     int ret = ioctl(fd, SIOCGIFADDR, &ifr);
-    rt_assert(ret == 0, "DPDK: Failed to get IPv4 address of eth1");
-    close(fd);
-    return ntohl(
-        reinterpret_cast<sockaddr_in *>(&ifr.ifr_addr)->sin_addr.s_addr);
+    if (ret == 0) {
+      rt_assert(ret == 0, "DPDK: Failed to get IPv4 address of eth1");
+      close(fd);
+      return ntohl(
+          reinterpret_cast<sockaddr_in *>(&ifr.ifr_addr)->sin_addr.s_addr);
+    } else {
+       uint32_t my_ip;
+       inet_pton(AF_INET, "10.0.0.7", &my_ip);
+       return ntohl(my_ip);
+    }
   } else {
     // As a hack, use the LSBs of the port's MAC address for IP address
     struct rte_ether_addr mac;

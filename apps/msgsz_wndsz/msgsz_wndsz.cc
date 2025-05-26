@@ -344,9 +344,10 @@ void print_stats(AppContext &c) {
   double rx_gbps = c.rx_bytes * 8 / (seconds * 1000000000.0f);
   double tx_kpps = c.tx_pkts / (seconds * 1000000.f);
   double tx_gbps = c.tx_bytes * 8 / (seconds * 1000000000.0f);
+  size_t re_tx = c.rpc_->get_num_re_tx(c.session_num_vec_[0]);
   printf("Process %zu, thread %zu: "
-      "Rx: %.3f (Kpps), %.3f (Gbps), Tx: %.3f (Kpps), %.3f (Gbps)\n",
-      FLAGS_process_id, c.thread_id_, rx_kpps, rx_gbps, tx_kpps, tx_gbps);
+      "Rx: %.3f (Kpps), %.3f (Gbps), Tx: %.3f (Kpps), %.3f (Gbps), Re_Tx: %zu\n",
+      FLAGS_process_id, c.thread_id_, rx_kpps, rx_gbps, tx_kpps, tx_gbps, re_tx);
 
   /* printf( */
   /*     "Process %zu, thread %zu: %.3f Mrps, re_tx = %zu, still_in_wheel = %zu. " */
@@ -415,6 +416,8 @@ void thread_func(size_t thread_id, app_stats_t *app_stats, erpc::Nexus *nexus) {
   }
 
   connect_sessions(c);
+  if (ctrl_c_pressed == 1)
+    return;
 
   printf("Process %zu, thread %zu: All sessions connected. Starting work.\n",
          FLAGS_process_id, thread_id);
