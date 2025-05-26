@@ -19,7 +19,7 @@ static constexpr bool kAppOptDisableRxRingReq = false;
 
 static constexpr size_t kAppReqType = 1;    // eRPC request type
 static constexpr uint8_t kAppDataByte = 3;  // Data transferred in req & resp
-static constexpr size_t kAppMaxBatchSize = 32;
+static constexpr size_t kAppMaxBatchSize = 512;
 static constexpr size_t kAppMaxConcurrency = 1024; // number of batches that are sent
 static const size_t kServerRespSize = 64;
 static bool is_server = false;
@@ -333,20 +333,23 @@ void print_stats(AppContext &c) {
   // Optional stats
   char lat_stat[100];
   sprintf(lat_stat, "[%.2f, %.2f us]", c.latency.perc(.50) / kAppLatFac,
-          c.latency.perc(.99) / kAppLatFac);
+      c.latency.perc(.99) / kAppLatFac);
   char rate_stat[100];
-  sprintf(rate_stat, "[%.2f, %.2f, %.2f, %.2f Gbps]",
-          erpc::kCcRateComp ? session_tput.at(num_sessions * 0.00) : -1,
-          erpc::kCcRateComp ? session_tput.at(num_sessions * 0.05) : -1,
-          erpc::kCcRateComp ? session_tput.at(num_sessions * 0.50) : -1,
-          erpc::kCcRateComp ? session_tput.at(num_sessions * 0.95) : -1);
-
+  if (session_tput.size() > 0) {
+    sprintf(rate_stat, "[%.2f, %.2f, %.2f, %.2f Gbps]",
+        erpc::kCcRateComp ? session_tput.at(num_sessions * 0.00) : -1,
+        erpc::kCcRateComp ? session_tput.at(num_sessions * 0.05) : -1,
+        erpc::kCcRateComp ? session_tput.at(num_sessions * 0.50) : -1,
+        erpc::kCcRateComp ? session_tput.at(num_sessions * 0.95) : -1);
+  }
 
   double rx_kpps = c.rx_pkts / (seconds * 1000000.f);
   double rx_gbps = c.rx_bytes * 8 / (seconds * 1000000000.0f);
   double tx_kpps = c.tx_pkts / (seconds * 1000000.f);
   double tx_gbps = c.tx_bytes * 8 / (seconds * 1000000000.0f);
-  size_t re_tx = c.rpc_->get_num_re_tx(c.session_num_vec_[0]);
+  size_t re_tx = 0;
+  if (!is_server)
+    re_tx = c.rpc_->get_num_re_tx(c.session_num_vec_[0]);
   printf("Process %zu, thread %zu: "
       "Rx: %.3f (Kpps), %.3f (Gbps), Tx: %.3f (Kpps), %.3f (Gbps), Re_Tx: %zu\n",
       FLAGS_process_id, c.thread_id_, rx_kpps, rx_gbps, tx_kpps, tx_gbps, re_tx);
@@ -401,8 +404,8 @@ void thread_func(size_t thread_id, app_stats_t *app_stats, erpc::Nexus *nexus) {
   uint8_t phy_port = port_vec.at(thread_id % port_vec.size());
 
   erpc::Rpc<erpc::CTransport> rpc(nexus, static_cast<void *>(&c),
-                                  static_cast<uint8_t>(thread_id),
-                                  basic_sm_handler, phy_port);
+      static_cast<uint8_t>(thread_id),
+      basic_sm_handler, phy_port);
 
   rpc.retry_connect_on_invalid_rpc_id_ = true;
   c.rpc_ = &rpc;
@@ -416,15 +419,14 @@ void thread_func(size_t thread_id, app_stats_t *app_stats, erpc::Nexus *nexus) {
     }
   }
 
-  connect_sessions(c);
-  if (ctrl_c_pressed == 1)
-    return;
-
-  printf("Process %zu, thread %zu: All sessions connected. Starting work.\n",
-         FLAGS_process_id, thread_id);
-
   // Start work
   if (!is_server) {
+    connect_sessions(c);
+    if (ctrl_c_pressed == 1)
+      return;
+
+    printf("Process %zu, thread %zu: All sessions connected. Starting work.\n",
+        FLAGS_process_id, thread_id);
     // Client
     clock_gettime(CLOCK_REALTIME, &c.tput_t0);
     for (size_t i = 0; i < FLAGS_concurrency; i++) send_reqs(&c, i);
@@ -433,6 +435,7 @@ void thread_func(size_t thread_id, app_stats_t *app_stats, erpc::Nexus *nexus) {
   for (size_t i = 0; i < FLAGS_test_ms; i += 1000) {
     rpc.run_event_loop(kAppEvLoopMs);  // 1 second
     if (ctrl_c_pressed == 1) break;
+    if (is_server) continue;
     print_stats(c);
   }
 }
@@ -448,11 +451,11 @@ int main(int argc, char **argv) {
   // We create a bit fewer sessions
   const size_t num_sessions = 2 * FLAGS_num_processes * FLAGS_num_threads;
   erpc::rt_assert(num_sessions * erpc::kSessionCredits <=
-                      erpc::Transport::kNumRxRingEntries,
-                  "Too few ring buffers");
+      erpc::Transport::kNumRxRingEntries,
+      "Too few ring buffers");
 
   erpc::Nexus nexus(erpc::get_uri_for_process(FLAGS_process_id),
-                    FLAGS_numa_node, 0);
+      FLAGS_numa_node, 0);
   nexus.register_req_func(kPingReqHandlerType, ping_req_handler);
 
   // the first process is the server, waiting for request and send fix size
