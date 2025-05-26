@@ -22,6 +22,7 @@ static constexpr uint8_t kAppDataByte = 3;  // Data transferred in req & resp
 static constexpr size_t kAppMaxBatchSize = 32;
 static constexpr size_t kAppMaxConcurrency = 1024; // number of batches that are sent
 static const size_t kServerRespSize = 64;
+static bool is_server = false;
 
 DEFINE_uint64(batch_size, 0, "Request batch size");
 DEFINE_uint64(msg_size, 0, "Request and response size");
@@ -280,7 +281,8 @@ void connect_sessions(AppContext &c) {
              FLAGS_process_id, c.thread_id_, remote_uri.c_str());
     }
 
-    for (size_t t_i = 0; t_i < FLAGS_num_threads; t_i++) {
+    size_t threads = is_server ? 1 : FLAGS_num_threads;
+    for (size_t t_i = 0; t_i < threads; t_i++) {
       if (FLAGS_process_id == p_i && c.thread_id_ == t_i) continue;
       int session_num = c.rpc_->create_session(remote_uri, t_i);
       erpc::rt_assert(session_num >= 0, "Failed to create session");
@@ -382,7 +384,6 @@ void print_stats(AppContext &c) {
   clock_gettime(CLOCK_REALTIME, &c.tput_t0);
 }
 
-static bool is_server = false;
 // The function executed by each thread in the cluster
 void thread_func(size_t thread_id, app_stats_t *app_stats, erpc::Nexus *nexus) {
   // move context to heap to have larger batch and concurency
@@ -457,18 +458,23 @@ int main(int argc, char **argv) {
   // the first process is the server, waiting for request and send fix size
   // responses.
   is_server = FLAGS_process_id == 0;
+
   if (is_server) {
     nexus.register_req_func(kAppReqType, req_handler);
+    // server has one thread
+    auto *app_stats = new app_stats_t[1];
+    thread_func(0, app_stats, &nexus);
+    delete[] app_stats;
+  } else {
+    // client may have multiple threads
+    auto *app_stats = new app_stats_t[FLAGS_num_threads];
+    std::vector<std::thread> threads(FLAGS_num_threads);
+    for (size_t i = 0; i < FLAGS_num_threads; i++) {
+      threads[i] = std::thread(thread_func, i, app_stats, &nexus);
+      erpc::bind_to_core(threads[i], FLAGS_numa_node, i);
+    }
+
+    for (auto &thread : threads) thread.join();
+    delete[] app_stats;
   }
-
-  std::vector<std::thread> threads(FLAGS_num_threads);
-  auto *app_stats = new app_stats_t[FLAGS_num_threads];
-
-  for (size_t i = 0; i < FLAGS_num_threads; i++) {
-    threads[i] = std::thread(thread_func, i, app_stats, &nexus);
-    erpc::bind_to_core(threads[i], FLAGS_numa_node, i);
-  }
-
-  for (auto &thread : threads) thread.join();
-  delete[] app_stats;
 }

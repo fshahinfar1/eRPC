@@ -6,6 +6,7 @@ NUMA_NODE=0
 MSG_SIZE=64
 BATCH_SIZE=1
 TIME=20000
+THREADS=1
 
 usage() {
 	prog_name=$(basename $0)
@@ -15,6 +16,7 @@ usage() {
 	* -m|--msgsz: message size
 	* -b|--batch: batch/concurrency size
 	* -t|--time: experiment duration
+	* -x|--thread: number of threads
 	* -h|--help: show this message
 	"
 }
@@ -43,6 +45,10 @@ parse_args() {
 				TIME=$2
 				shift; shift
 				;;
+			-x|--thread)
+				THREADS=$2
+				shift; shift
+				;;
 			-h|--help)
 				usage
 				exit 0
@@ -69,11 +75,11 @@ getconfig() {
 --concurrency $BATCH_SIZE
 --msg_size $MSG_SIZE
 --num_processes 2
---num_threads 1
+--num_threads $THREADS
 --numa_node $NUMA_NODE
 --numa_0_ports 0
---numa_1_ports 0
 "
+# --numa_1_ports 0
 }
 
 check_autorun_prog() {
