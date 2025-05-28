@@ -78,8 +78,8 @@ getconfig() {
 --num_threads $THREADS
 --numa_node $NUMA_NODE
 --numa_0_ports 0
+--numa_1_ports 0
 "
-# --numa_1_ports 0
 }
 
 check_autorun_prog() {
