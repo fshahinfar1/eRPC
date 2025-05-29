@@ -1,7 +1,20 @@
 #ifndef MSGSZ_WNDSZ_SERVER_H_
 #define MSGSZ_WNDSZ_SERVER_H_
 #include <cstdio>
+#include <optional>
 #include "./common.h"
+
+static size_t fib(size_t n) {
+	size_t a, b, c = 4;
+	a = b = 1;
+	if (n == 2) return 1;
+	for (size_t i = 2 ; i < n; i++) {
+		c = a+b;
+		a = b;
+		b = c;
+	}
+	return c;
+}
 
 // Send response of size kServerRespSize
 void req_handler(erpc::ReqHandle *req_handle, void *_context) {
@@ -11,15 +24,30 @@ void req_handler(erpc::ReqHandle *req_handle, void *_context) {
   // make sure we have received all the client data
   assert(req_msgbuf->get_data_size() == FLAGS_msg_size);
   c->rx_pkts++;
-  c->rx_bytes += req_msgbuf->get_data_size();
+  const size_t sz = req_msgbuf->get_data_size();
+  c->rx_bytes += sz;
+
+  if (kDoExtraWorkPerReq) {
+	  volatile size_t x = 2048;
+	  int fib_value = fib(x);
+	  if (fib_value == 4) {
+		  printf("we have captured the flag!");
+	  }
+  }
+
+  std::optional<erpc::MsgBuffer> copy_msgbuf;
+  // *copy_msgbuf = c->rpc_->alloc_msg_buffer(sz);
 
   // RX ring request optimization knob
   if (kAppOptDisableRxRingReq) {
     // Simulate copying the request off the RX ring
-    auto copy_msgbuf = c->rpc_->alloc_msg_buffer(FLAGS_msg_size);
-    assert(copy_msgbuf.buf != nullptr);
-    memcpy(copy_msgbuf.buf_, req_msgbuf->buf_, FLAGS_msg_size);
-    c->rpc_->free_msg_buffer(copy_msgbuf);
+    copy_msgbuf = c->rpc_->alloc_msg_buffer(sz);
+    assert(copy_msgbuf->buf_ != nullptr);
+    if (copy_msgbuf->buf_ == nullptr) {
+      printf("the buffer is null and it's bad!\n");
+      throw std::runtime_error("hell ran out of memory!");
+    }
+    memcpy(copy_msgbuf->buf_, req_msgbuf->buf_, sz);
   }
 
   // Preallocated response optimization knob
@@ -48,6 +76,16 @@ void req_handler(erpc::ReqHandle *req_handle, void *_context) {
   }
   c->tx_pkts += 1;
   c->tx_bytes += kServerRespSize;
+
+  // ..
+  if (copy_msgbuf) {
+    assert(copy_msgbuf->buf_ != nullptr);
+    if (copy_msgbuf->buf_[32] == 'h'){
+      printf("you discovered the easter egg! now let's capture the flag: ...\n");
+    }
+    c->rpc_->free_msg_buffer(*copy_msgbuf);
+    // printf("are we freeing things?\n");
+  }
 }
 
 

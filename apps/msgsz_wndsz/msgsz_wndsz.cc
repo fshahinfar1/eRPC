@@ -11,11 +11,12 @@ static constexpr size_t kAppEvLoopMs = 1000;  // Duration of event loop
 static constexpr bool kAppVerbose = false;    // Print debug info on datapath
 static constexpr bool kAppMeasureLatency = false;
 static constexpr double kAppLatFac = 3.0;        // Precision factor for latency
-static constexpr bool kAppPayloadCheck = false;  // Check full request/response
+static constexpr bool kAppPayloadCheck = true;  // Check full request/response
+static constexpr bool kDoExtraWorkPerReq = false;
 
 // Optimization knobs. Set to true to disable optimization.
 static constexpr bool kAppOptDisablePreallocResp = false;
-static constexpr bool kAppOptDisableRxRingReq = false;
+static constexpr bool kAppOptDisableRxRingReq = true;
 
 static constexpr size_t kAppReqType = 1;    // eRPC request type
 static constexpr uint8_t kAppDataByte = 3;  // Data transferred in req & resp
@@ -23,7 +24,7 @@ static constexpr size_t kAppMaxBatchSize = 512;
 static constexpr size_t kAppMaxConcurrency = 1024; // number of batches that are sent
 static const size_t kServerRespSize = 64;
 static bool is_server = false;
-static uint32_t kSessionPerThread = 2; // number of sessions each client thread opens
+static uint32_t kSessionPerThread = 16; // number of sessions each client thread opens
 
 DEFINE_uint64(batch_size, 0, "Request batch size");
 DEFINE_uint64(msg_size, 0, "Request and response size");
